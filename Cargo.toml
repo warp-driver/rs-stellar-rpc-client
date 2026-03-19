@@ -11,16 +11,12 @@ edition = "2021"
 rust-version = "1.85.0"
 autobins = false
 
-
 [lib]
 crate-type = ["rlib"]
-
 
 [dependencies]
 stellar-strkey = "0.0.15"
 stellar-xdr = { version = "25.0.0", features = ["curr", "std", "serde", "base64"] }
-
-
 termcolor = "1.1.3"
 termcolor_output = "1.0.1"
 clap = { version = "4.1.8", features = ["derive"] }
@@ -31,10 +27,10 @@ hex = "0.4.3"
 thiserror = "1.0.46"
 serde = "1.0.82"
 serde_with = "3.9.0"
-tokio = "1.42"
+tokio = { version = "1.51.0", features = ["rt", "net", "io-util", "time", "macros", "sync"] }
 sha2 = "0.10.7"
-
-# networking
-jsonrpsee-http-client = "0.26.0"
-jsonrpsee-core = "0.26.0"
 http = "1.0.0"
+
+# branch = "wasip2-support"
+jsonrpsee-http-client = { git = "https://github.com/warp-driver/jsonrpsee", rev="8a1a7f45c29227c2b92c010e9b870723e0f444d4", default-features = false, features = ["tls-rustcrypto"] }
+jsonrpsee-core = { git = "https://github.com/warp-driver/jsonrpsee", rev="8a1a7f45c29227c2b92c010e9b870723e0f444d4", features = ["client"] }
