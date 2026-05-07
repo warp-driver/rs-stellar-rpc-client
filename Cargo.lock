@@ -1081,7 +1081,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-core"
 version = "0.26.0"
-source = "git+https://github.com/warp-driver/jsonrpsee?rev=8a1a7f45c29227c2b92c010e9b870723e0f444d4#8a1a7f45c29227c2b92c010e9b870723e0f444d4"
+source = "git+https://github.com/warp-driver/jsonrpsee?rev=196bcff1581065b698626cd2dac028feb2c1e86e#196bcff1581065b698626cd2dac028feb2c1e86e"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1102,7 +1102,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-http-client"
 version = "0.26.0"
-source = "git+https://github.com/warp-driver/jsonrpsee?rev=8a1a7f45c29227c2b92c010e9b870723e0f444d4#8a1a7f45c29227c2b92c010e9b870723e0f444d4"
+source = "git+https://github.com/warp-driver/jsonrpsee?rev=196bcff1581065b698626cd2dac028feb2c1e86e#196bcff1581065b698626cd2dac028feb2c1e86e"
 dependencies = [
  "base64",
  "cfg_aliases",
@@ -1128,7 +1128,7 @@ dependencies = [
 [[package]]
 name = "jsonrpsee-types"
 version = "0.26.0"
-source = "git+https://github.com/warp-driver/jsonrpsee?rev=8a1a7f45c29227c2b92c010e9b870723e0f444d4#8a1a7f45c29227c2b92c010e9b870723e0f444d4"
+source = "git+https://github.com/warp-driver/jsonrpsee?rev=196bcff1581065b698626cd2dac028feb2c1e86e#196bcff1581065b698626cd2dac028feb2c1e86e"
 dependencies = [
  "http",
  "serde",

@@ -32,5 +32,5 @@ sha2 = "0.10.7"
 http = "1.0.0"
 
 # branch = "wasip2-support"
-jsonrpsee-http-client = { git = "https://github.com/warp-driver/jsonrpsee", rev="8a1a7f45c29227c2b92c010e9b870723e0f444d4", default-features = false, features = ["tls-rustcrypto"] }
-jsonrpsee-core = { git = "https://github.com/warp-driver/jsonrpsee", rev="8a1a7f45c29227c2b92c010e9b870723e0f444d4", features = ["client"] }
+jsonrpsee-http-client = { git = "https://github.com/warp-driver/jsonrpsee", rev="196bcff1581065b698626cd2dac028feb2c1e86e", default-features = false, features = ["tls-rustcrypto"] }
+jsonrpsee-core = { git = "https://github.com/warp-driver/jsonrpsee", rev="196bcff1581065b698626cd2dac028feb2c1e86e", features = ["client"] }
