@@ -1,8 +1,4 @@
-use http::{uri::Authority, Uri};
 use itertools::Itertools;
-use wasi_jsonrpsee_core::params::ObjectParams;
-use wasi_jsonrpsee_core::{self, client::ClientT};
-use wasi_jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
 use serde_aux::prelude::{
     deserialize_default_from_null, deserialize_number_from_string,
     deserialize_option_number_from_string,
@@ -16,6 +12,9 @@ use stellar_xdr::curr::{
     TransactionEnvelope, TransactionEvent, TransactionMetaV3, TransactionResult, Uint256, VecM,
     WriteXdr,
 };
+use wasi_jsonrpsee_core::params::ObjectParams;
+use wasi_jsonrpsee_core::{self, client::ClientT};
+use wasi_jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
 
 use std::{
     f64::consts::E,
@@ -50,10 +49,6 @@ pub enum Error {
     InvalidNetworkPassphrase { expected: String, server: String },
     #[error("xdr processing error: {0}")]
     Xdr(#[from] XdrError),
-    #[error("invalid rpc url: {0}")]
-    InvalidRpcUrl(http::uri::InvalidUri),
-    #[error("invalid rpc url: {0}")]
-    InvalidRpcUrlFromUriParts(http::uri::InvalidUriParts),
     #[error("invalid friendbot url: {0}")]
     InvalidUrl(String),
     #[error(transparent)]
@@ -938,41 +933,15 @@ impl Client {
     ///
     /// # Errors
     pub fn new(base_url: &str) -> Result<Self, Error> {
-        // Add the port to the base URL if there is no port explicitly included
-        // in the URL and the scheme allows us to infer a default port.
-        // Jsonrpsee requires a port to always be present even if one can be
-        // inferred. This may change: https://github.com/paritytech/jsonrpsee/issues/1048.
-        let uri = base_url.parse::<Uri>().map_err(Error::InvalidRpcUrl)?;
-        let mut parts = uri.into_parts();
-
-        if let (Some(scheme), Some(authority)) = (&parts.scheme, &parts.authority) {
-            if authority.port().is_none() {
-                let port = match scheme.as_str() {
-                    "http" => Some(80),
-                    "https" => Some(443),
-                    _ => None,
-                };
-                if let Some(port) = port {
-                    let host = authority.host();
-                    parts.authority = Some(
-                        Authority::from_str(&format!("{host}:{port}"))
-                            .map_err(Error::InvalidRpcUrl)?,
-                    );
-                }
-            }
-        }
-
-        let uri = Uri::from_parts(parts).map_err(Error::InvalidRpcUrlFromUriParts)?;
-        let base_url = Arc::from(uri.to_string());
         let headers = Self::default_http_headers();
         let http_client = Arc::new(
             HttpClientBuilder::default()
                 .set_headers(headers)
-                .build(&base_url)?,
+                .build(base_url)?,
         );
 
         Ok(Self {
-            base_url,
+            base_url: Arc::from(base_url),
             timeout_in_secs: 30,
             http_client,
         })
@@ -1742,31 +1711,24 @@ mod tests {
 
     #[test]
     fn test_rpc_url_default_ports() {
-        // Default ports are added.
+        // Portless URLs are accepted; the underlying jsonrpsee transport
+        // infers the default port from the scheme. The input is stored as-is.
         let client = Client::new("http://example.com").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/");
+        assert_eq!(client.base_url(), "http://example.com");
         let client = Client::new("https://example.com").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/");
+        assert_eq!(client.base_url(), "https://example.com");
 
-        // Ports are not added when already present.
+        // URLs with explicit ports work and are stored as-is.
         let client = Client::new("http://example.com:8080").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:8080/");
+        assert_eq!(client.base_url(), "http://example.com:8080");
         let client = Client::new("https://example.com:8080").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:8080/");
+        assert_eq!(client.base_url(), "https://example.com:8080");
 
-        // Paths are not modified.
+        // Paths are preserved verbatim.
         let client = Client::new("http://example.com/a/b/c").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b/c");
-        let client = Client::new("https://example.com/a/b/c").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b/c");
-        let client = Client::new("http://example.com/a/b/c/").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b/c/");
+        assert_eq!(client.base_url(), "http://example.com/a/b/c");
         let client = Client::new("https://example.com/a/b/c/").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b/c/");
-        let client = Client::new("http://example.com/a/b:80/c/").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b:80/c/");
-        let client = Client::new("https://example.com/a/b:80/c/").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b:80/c/");
+        assert_eq!(client.base_url(), "https://example.com/a/b/c/");
     }
 
     #[test]

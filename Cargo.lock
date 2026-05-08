@@ -1827,7 +1827,6 @@ version = "26.0.0-rc.2"
 dependencies = [
  "clap",
  "hex",
- "http",
  "itertools",
  "serde",
  "serde-aux",

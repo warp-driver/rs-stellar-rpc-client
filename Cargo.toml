@@ -37,4 +37,3 @@ sha2 = "0.10.7"
 # networking
 wasi-jsonrpsee-http-client = "0.26.1"
 wasi-jsonrpsee-core = "0.26.1"
-http = "1.4.0"
