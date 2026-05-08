@@ -1,8 +1,4 @@
-use http::{uri::Authority, Uri};
 use itertools::Itertools;
-use jsonrpsee_core::params::ObjectParams;
-use jsonrpsee_core::{self, client::ClientT};
-use jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
 use serde_aux::prelude::{
     deserialize_default_from_null, deserialize_number_from_string,
     deserialize_option_number_from_string,
@@ -16,6 +12,9 @@ use stellar_xdr::curr::{
     TransactionEnvelope, TransactionEvent, TransactionMetaV3, TransactionResult, Uint256, VecM,
     WriteXdr,
 };
+use wasi_jsonrpsee_core::params::ObjectParams;
+use wasi_jsonrpsee_core::{self, client::ClientT};
+use wasi_jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
 
 use std::{
     f64::consts::E,
@@ -50,14 +49,10 @@ pub enum Error {
     InvalidNetworkPassphrase { expected: String, server: String },
     #[error("xdr processing error: {0}")]
     Xdr(#[from] XdrError),
-    #[error("invalid rpc url: {0}")]
-    InvalidRpcUrl(http::uri::InvalidUri),
-    #[error("invalid rpc url: {0}")]
-    InvalidRpcUrlFromUriParts(http::uri::InvalidUriParts),
     #[error("invalid friendbot url: {0}")]
     InvalidUrl(String),
     #[error(transparent)]
-    JsonRpc(#[from] jsonrpsee_core::ClientError),
+    JsonRpc(#[from] wasi_jsonrpsee_core::ClientError),
     #[error("json decoding error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("transaction failed: {0}")]
@@ -87,12 +82,12 @@ pub enum Error {
     #[error("Transaction contains unsupported operation type")]
     UnsupportedOperationType,
     #[error("unexpected contract code data type: {0:?}")]
-    UnexpectedContractCodeDataType(LedgerEntryData),
+    UnexpectedContractCodeDataType(Box<LedgerEntryData>),
     #[error("unexpected contract instance type: {0:?}")]
-    UnexpectedContractInstance(xdr::ScVal),
+    UnexpectedContractInstance(Box<xdr::ScVal>),
     #[error("unexpected contract code got token {0:?}")]
     #[deprecated(note = "To be removed in future versions")]
-    UnexpectedToken(ContractDataEntry),
+    UnexpectedToken(Box<ContractDataEntry>),
     #[error("Fee was too large {0}")]
     LargeFee(u64),
     #[error("Cannot authorize raw transactions")]
@@ -938,41 +933,15 @@ impl Client {
     ///
     /// # Errors
     pub fn new(base_url: &str) -> Result<Self, Error> {
-        // Add the port to the base URL if there is no port explicitly included
-        // in the URL and the scheme allows us to infer a default port.
-        // Jsonrpsee requires a port to always be present even if one can be
-        // inferred. This may change: https://github.com/paritytech/jsonrpsee/issues/1048.
-        let uri = base_url.parse::<Uri>().map_err(Error::InvalidRpcUrl)?;
-        let mut parts = uri.into_parts();
-
-        if let (Some(scheme), Some(authority)) = (&parts.scheme, &parts.authority) {
-            if authority.port().is_none() {
-                let port = match scheme.as_str() {
-                    "http" => Some(80),
-                    "https" => Some(443),
-                    _ => None,
-                };
-                if let Some(port) = port {
-                    let host = authority.host();
-                    parts.authority = Some(
-                        Authority::from_str(&format!("{host}:{port}"))
-                            .map_err(Error::InvalidRpcUrl)?,
-                    );
-                }
-            }
-        }
-
-        let uri = Uri::from_parts(parts).map_err(Error::InvalidRpcUrlFromUriParts)?;
-        let base_url = Arc::from(uri.to_string());
         let headers = Self::default_http_headers();
         let http_client = Arc::new(
             HttpClientBuilder::default()
                 .set_headers(headers)
-                .build(&base_url)?,
+                .build(base_url)?,
         );
 
         Ok(Self {
-            base_url,
+            base_url: Arc::from(base_url),
             timeout_in_secs: 30,
             http_client,
         })
@@ -1485,7 +1454,7 @@ impl Client {
         let contract_ref_entry = &entries[0];
         match LedgerEntryData::from_xdr_base64(&contract_ref_entry.xdr, Limits::none())? {
             LedgerEntryData::ContractData(contract_data) => Ok(contract_data),
-            scval => Err(Error::UnexpectedContractCodeDataType(scval)),
+            scval => Err(Error::UnexpectedContractCodeDataType(Box::new(scval))),
         }
     }
 
@@ -1502,7 +1471,7 @@ impl Client {
                     }),
                 ..
             } => self.get_remote_wasm_from_hash(hash).await,
-            scval => Err(Error::UnexpectedToken(scval)),
+            scval => Err(Error::UnexpectedToken(Box::new(scval))),
         }
     }
 
@@ -1522,7 +1491,7 @@ impl Client {
         let contract_data_entry = &entries[0];
         match LedgerEntryData::from_xdr_base64(&contract_data_entry.xdr, Limits::none())? {
             LedgerEntryData::ContractCode(xdr::ContractCodeEntry { code, .. }) => Ok(code.into()),
-            scval => Err(Error::UnexpectedContractCodeDataType(scval)),
+            scval => Err(Error::UnexpectedContractCodeDataType(Box::new(scval))),
         }
     }
 
@@ -1537,7 +1506,7 @@ impl Client {
         let contract_data = self.get_contract_data(contract_id).await?;
         match contract_data.val {
             xdr::ScVal::ContractInstance(instance) => Ok(instance),
-            scval => Err(Error::UnexpectedContractInstance(scval)),
+            scval => Err(Error::UnexpectedContractInstance(Box::new(scval))),
         }
     }
 }
@@ -1628,7 +1597,7 @@ mod tests {
     fn read_json_file(name: &str) -> String {
         let repo_root = get_repo_root();
         let fixture_path = repo_root.join("src").join("fixtures").join(name);
-        fs::read_to_string(fixture_path).expect(&format!("Failed to read {name:?}"))
+        fs::read_to_string(fixture_path).unwrap_or_else(|_| panic!("Failed to read {name:?}"))
     }
 
     #[test]
@@ -1742,31 +1711,24 @@ mod tests {
 
     #[test]
     fn test_rpc_url_default_ports() {
-        // Default ports are added.
+        // Portless URLs are accepted; the underlying jsonrpsee transport
+        // infers the default port from the scheme. The input is stored as-is.
         let client = Client::new("http://example.com").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/");
+        assert_eq!(client.base_url(), "http://example.com");
         let client = Client::new("https://example.com").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/");
+        assert_eq!(client.base_url(), "https://example.com");
 
-        // Ports are not added when already present.
+        // URLs with explicit ports work and are stored as-is.
         let client = Client::new("http://example.com:8080").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:8080/");
+        assert_eq!(client.base_url(), "http://example.com:8080");
         let client = Client::new("https://example.com:8080").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:8080/");
+        assert_eq!(client.base_url(), "https://example.com:8080");
 
-        // Paths are not modified.
+        // Paths are preserved verbatim.
         let client = Client::new("http://example.com/a/b/c").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b/c");
-        let client = Client::new("https://example.com/a/b/c").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b/c");
-        let client = Client::new("http://example.com/a/b/c/").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b/c/");
+        assert_eq!(client.base_url(), "http://example.com/a/b/c");
         let client = Client::new("https://example.com/a/b/c/").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b/c/");
-        let client = Client::new("http://example.com/a/b:80/c/").unwrap();
-        assert_eq!(client.base_url(), "http://example.com:80/a/b:80/c/");
-        let client = Client::new("https://example.com/a/b:80/c/").unwrap();
-        assert_eq!(client.base_url(), "https://example.com:443/a/b:80/c/");
+        assert_eq!(client.base_url(), "https://example.com/a/b/c/");
     }
 
     #[test]
