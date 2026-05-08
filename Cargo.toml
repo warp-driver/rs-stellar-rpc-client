@@ -1,12 +1,12 @@
 [package]
-name = "stellar-rpc-client"
+name = "wasi-stellar-rpc-client"
 description = "Stellar RPC client for rust"
-homepage = "https://github.com/stellar/rs-stellar-rpc-client"
-repository = "https://github.com/stellar/rs-stellar-rpc-client"
-authors = ["Stellar Development Foundation <info@stellar.org>"]
+homepage = "https://github.com/warp-driver/rs-stellar-rpc-client"
+repository = "https://github.com/warp-driver/rs-stellar-rpc-client"
+authors = ["Warp Driver", "Stellar Development Foundation <info@stellar.org>"]
 license = "Apache-2.0"
 readme = "README.md"
-version = "26.0.0-rc.2"
+version = "26.0.0-rc.3"
 edition = "2021"
 rust-version = "1.93.0"
 autobins = false
