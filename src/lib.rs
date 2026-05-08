@@ -82,12 +82,12 @@ pub enum Error {
     #[error("Transaction contains unsupported operation type")]
     UnsupportedOperationType,
     #[error("unexpected contract code data type: {0:?}")]
-    UnexpectedContractCodeDataType(LedgerEntryData),
+    UnexpectedContractCodeDataType(Box<LedgerEntryData>),
     #[error("unexpected contract instance type: {0:?}")]
-    UnexpectedContractInstance(xdr::ScVal),
+    UnexpectedContractInstance(Box<xdr::ScVal>),
     #[error("unexpected contract code got token {0:?}")]
     #[deprecated(note = "To be removed in future versions")]
-    UnexpectedToken(ContractDataEntry),
+    UnexpectedToken(Box<ContractDataEntry>),
     #[error("Fee was too large {0}")]
     LargeFee(u64),
     #[error("Cannot authorize raw transactions")]
@@ -1454,7 +1454,7 @@ impl Client {
         let contract_ref_entry = &entries[0];
         match LedgerEntryData::from_xdr_base64(&contract_ref_entry.xdr, Limits::none())? {
             LedgerEntryData::ContractData(contract_data) => Ok(contract_data),
-            scval => Err(Error::UnexpectedContractCodeDataType(scval)),
+            scval => Err(Error::UnexpectedContractCodeDataType(Box::new(scval))),
         }
     }
 
@@ -1471,7 +1471,7 @@ impl Client {
                     }),
                 ..
             } => self.get_remote_wasm_from_hash(hash).await,
-            scval => Err(Error::UnexpectedToken(scval)),
+            scval => Err(Error::UnexpectedToken(Box::new(scval))),
         }
     }
 
@@ -1491,7 +1491,7 @@ impl Client {
         let contract_data_entry = &entries[0];
         match LedgerEntryData::from_xdr_base64(&contract_data_entry.xdr, Limits::none())? {
             LedgerEntryData::ContractCode(xdr::ContractCodeEntry { code, .. }) => Ok(code.into()),
-            scval => Err(Error::UnexpectedContractCodeDataType(scval)),
+            scval => Err(Error::UnexpectedContractCodeDataType(Box::new(scval))),
         }
     }
 
@@ -1506,7 +1506,7 @@ impl Client {
         let contract_data = self.get_contract_data(contract_id).await?;
         match contract_data.val {
             xdr::ScVal::ContractInstance(instance) => Ok(instance),
-            scval => Err(Error::UnexpectedContractInstance(scval)),
+            scval => Err(Error::UnexpectedContractInstance(Box::new(scval))),
         }
     }
 }
@@ -1597,7 +1597,7 @@ mod tests {
     fn read_json_file(name: &str) -> String {
         let repo_root = get_repo_root();
         let fixture_path = repo_root.join("src").join("fixtures").join(name);
-        fs::read_to_string(fixture_path).expect(&format!("Failed to read {name:?}"))
+        fs::read_to_string(fixture_path).unwrap_or_else(|_| panic!("Failed to read {name:?}"))
     }
 
     #[test]

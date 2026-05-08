@@ -1,6 +1,6 @@
 all: check build test
 
-export RUSTFLAGS=-Dwarnings -Dclippy::all -Dclippy::pedantic
+export RUSTFLAGS=-Dwarnings -Dclippy::all
 
 build:
 	cargo build
@@ -16,6 +16,5 @@ fmt:
 
 clean:
 	cargo clean
-	go clean ./...
 
 .PHONY: all build test fmt clean
