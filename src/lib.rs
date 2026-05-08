@@ -1,8 +1,8 @@
 use http::{uri::Authority, Uri};
 use itertools::Itertools;
-use jsonrpsee_core::params::ObjectParams;
-use jsonrpsee_core::{self, client::ClientT};
-use jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
+use wasi_jsonrpsee_core::params::ObjectParams;
+use wasi_jsonrpsee_core::{self, client::ClientT};
+use wasi_jsonrpsee_http_client::{HeaderMap, HttpClient, HttpClientBuilder};
 use serde_aux::prelude::{
     deserialize_default_from_null, deserialize_number_from_string,
     deserialize_option_number_from_string,
@@ -57,7 +57,7 @@ pub enum Error {
     #[error("invalid friendbot url: {0}")]
     InvalidUrl(String),
     #[error(transparent)]
-    JsonRpc(#[from] jsonrpsee_core::ClientError),
+    JsonRpc(#[from] wasi_jsonrpsee_core::ClientError),
     #[error("json decoding error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("transaction failed: {0}")]
